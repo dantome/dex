@@ -32,6 +32,7 @@ final class ActionExecutor: ObservableObject {
   @Published private(set) var lastResult: String?
 
   private let history: ExecutionHistoryStore
+  private let applicationWindowCycler = ApplicationWindowCycler()
   private var runningProcesses: [UUID: Process] = [:]
 
   init(history: ExecutionHistoryStore) {
@@ -79,13 +80,22 @@ final class ActionExecutor: ObservableObject {
 
   private func launchApplication(_ target: String, shortcutName: String) throws {
     let expandedTarget = (target as NSString).expandingTildeInPath
-    let applicationURL: URL?
-    if FileManager.default.fileExists(atPath: expandedTarget) {
-      applicationURL = URL(fileURLWithPath: expandedTarget)
-    } else {
-      applicationURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: target)
-    }
+    let applicationURL =
+      FileManager.default.fileExists(atPath: expandedTarget)
+      ? URL(fileURLWithPath: expandedTarget)
+      : NSWorkspace.shared.urlForApplication(withBundleIdentifier: target)
     guard let applicationURL else { throw ActionExecutionError.invalidApplication(target) }
+
+    if
+      let bundleIdentifier = Bundle(url: applicationURL)?.bundleIdentifier,
+      let runningApplication = NSRunningApplication.runningApplications(
+        withBundleIdentifier: bundleIdentifier
+      ).first,
+      applicationWindowCycler.activateNextWindow(in: runningApplication)
+    {
+      lastResult = "Opened \(shortcutName)."
+      return
+    }
 
     NSWorkspace.shared.openApplication(
       at: applicationURL,

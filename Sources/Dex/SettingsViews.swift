@@ -1337,12 +1337,10 @@ private struct ShortcutRecorderEventMonitor: NSViewRepresentable {
 
       if isPressed(trigger.keyCode) { return true }
 
-      return switch trigger {
-      case .rightCommand, .leftCommand: flags.contains(.command)
-      case .rightOption, .leftOption: flags.contains(.option)
-      case .rightControl, .leftControl: flags.contains(.control)
-      case .function: flags.contains(.function)
-      }
+      // The generic modifier flag cannot tell the left and right keys apart.
+      // The physical key-state query above also covers a trigger that was held
+      // before recording began, so a generic fallback is never appropriate.
+      return false
     }
 
     private func triggerFlagIsActive(in flags: NSEvent.ModifierFlags) -> Bool {
