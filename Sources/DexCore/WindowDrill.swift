@@ -210,6 +210,104 @@ public enum WindowDrillGeometry {
       && abs(actual.height - target.height) <= verticalTolerance
   }
 
+  /// Matches a Magnet placement when an application's minimum window size
+  /// prevents it from reaching the exact target. Magnet keeps the window
+  /// anchored to the requested screen edge in this case, so accept a bounded
+  /// expansion from that edge without letting a maximized window satisfy a
+  /// half, third, or quarter target.
+  public static func matchesWindow(
+    actual: DrillRect,
+    target: DrillRect,
+    for zone: DrillZone,
+    on display: DrillDisplay,
+    toleranceFraction: Double = 0.07,
+    minimumTolerance: Double = 18,
+    maximumOverflowFraction: Double = 0.30
+  ) -> Bool {
+    if matchesWindow(
+      actual: actual,
+      target: target,
+      on: display,
+      toleranceFraction: toleranceFraction,
+      minimumTolerance: minimumTolerance
+    ) {
+      return true
+    }
+
+    // Geometry alone cannot prove that an oversized result came from an
+    // application's minimum size. If it cleanly matches another Magnet zone,
+    // treat it as that zone instead of accepting it through the fallback. This
+    // is especially important for distinguishing halves from thirds.
+    let matchesAnotherZone = DrillZone.allCases.lazy
+      .filter { $0 != zone }
+      .contains { otherZone in
+        matchesWindow(
+          actual: actual,
+          target: otherZone.frame(in: display),
+          on: display,
+          toleranceFraction: toleranceFraction,
+          minimumTolerance: minimumTolerance
+        )
+      }
+    guard !matchesAnotherZone else { return false }
+
+    let horizontalTolerance = max(minimumTolerance, display.frame.width * toleranceFraction)
+    let verticalTolerance = max(minimumTolerance, display.frame.height * toleranceFraction)
+    let horizontalOverflow = display.frame.width * maximumOverflowFraction
+    let verticalOverflow = display.frame.height * maximumOverflowFraction
+
+    guard
+      actual.width >= target.width - horizontalTolerance,
+      actual.height >= target.height - verticalTolerance,
+      actual.width <= target.width + horizontalOverflow,
+      actual.height <= target.height + verticalOverflow
+    else { return false }
+
+    let unit = zone.normalizedFrame
+    return matchesAxis(
+      actualMinimum: actual.x,
+      actualMaximum: actual.x + actual.width,
+      targetMinimum: target.x,
+      targetMaximum: target.x + target.width,
+      normalizedMinimum: unit.x,
+      normalizedLength: unit.width,
+      tolerance: horizontalTolerance
+    ) && matchesAxis(
+      actualMinimum: actual.y,
+      actualMaximum: actual.y + actual.height,
+      targetMinimum: target.y,
+      targetMaximum: target.y + target.height,
+      normalizedMinimum: unit.y,
+      normalizedLength: unit.height,
+      tolerance: verticalTolerance
+    )
+  }
+
+  private static func matchesAxis(
+    actualMinimum: Double,
+    actualMaximum: Double,
+    targetMinimum: Double,
+    targetMaximum: Double,
+    normalizedMinimum: Double,
+    normalizedLength: Double,
+    tolerance: Double
+  ) -> Bool {
+    let normalizedMaximum = normalizedMinimum + normalizedLength
+    if abs(normalizedLength - 1) < 0.0001 {
+      return abs(actualMinimum - targetMinimum) <= tolerance
+        && abs(actualMaximum - targetMaximum) <= tolerance
+    }
+    if abs(normalizedMinimum) < 0.0001 {
+      return abs(actualMinimum - targetMinimum) <= tolerance
+    }
+    if abs(normalizedMaximum - 1) < 0.0001 {
+      return abs(actualMaximum - targetMaximum) <= tolerance
+    }
+    let actualCenter = (actualMinimum + actualMaximum) / 2
+    let targetCenter = (targetMinimum + targetMaximum) / 2
+    return abs(actualCenter - targetCenter) <= tolerance
+  }
+
   /// Returns true when macOS reports the same physical display topology, even
   /// if it delivers the displays in a different order or introduces sub-pixel
   /// rounding noise in their usable frames.
@@ -243,18 +341,31 @@ public enum WindowDrillGenerator {
     else { return [] }
 
     let usableWindows = Array(windows.prefix(displays.count * 4))
-    let feasibleDisplayCounts = feasibleDisplayCounts(
-      windowCount: usableWindows.count,
-      displayCount: displays.count,
-      enabledFamilies: enabledFamilies
-    )
-    guard !feasibleDisplayCounts.isEmpty else { return [] }
+    let feasibleWindowCounts = (1...usableWindows.count).filter { windowCount in
+      !feasibleDisplayCounts(
+        windowCount: windowCount,
+        displayCount: displays.count,
+        enabledFamilies: enabledFamilies
+      ).isEmpty
+    }
+    guard !feasibleWindowCounts.isEmpty else { return [] }
     var rounds: [DrillRound] = []
+    var remainingWindowCounts: [Int] = []
     var previousSignature: String?
 
     for _ in 0..<roundCount {
+      if remainingWindowCounts.isEmpty {
+        remainingWindowCounts = feasibleWindowCounts.shuffled(using: &generator)
+      }
+      let activeWindowCount = remainingWindowCounts.removeLast()
+      let feasibleDisplayCounts = feasibleDisplayCounts(
+        windowCount: activeWindowCount,
+        displayCount: displays.count,
+        enabledFamilies: enabledFamilies
+      )
       var candidate = makeRound(
         windows: usableWindows,
+        activeWindowCount: activeWindowCount,
         displays: displays,
         feasibleDisplayCounts: feasibleDisplayCounts,
         enabledFamilies: enabledFamilies,
@@ -264,6 +375,7 @@ public enum WindowDrillGenerator {
       while candidate.signature == previousSignature && attempts < 6 {
         candidate = makeRound(
           windows: usableWindows,
+          activeWindowCount: activeWindowCount,
           displays: displays,
           feasibleDisplayCounts: feasibleDisplayCounts,
           enabledFamilies: enabledFamilies,
@@ -279,18 +391,19 @@ public enum WindowDrillGenerator {
 
   private static func makeRound<R: RandomNumberGenerator>(
     windows: [DrillWindow],
+    activeWindowCount: Int,
     displays: [DrillDisplay],
     feasibleDisplayCounts: [Int],
     enabledFamilies: Set<DrillLayoutFamily>,
     using generator: inout R
   ) -> DrillRound {
-    let shuffledWindows = windows.shuffled(using: &generator)
+    let activeWindows = windows.shuffled(using: &generator).prefix(activeWindowCount)
     let activeDisplayCount = feasibleDisplayCounts.randomElement(using: &generator)
       ?? feasibleDisplayCounts[0]
     let activeDisplays = Array(displays.shuffled(using: &generator).prefix(activeDisplayCount))
 
     var groups = Array(repeating: [DrillWindow](), count: activeDisplayCount)
-    for (index, window) in shuffledWindows.enumerated() {
+    for (index, window) in activeWindows.enumerated() {
       groups[index % activeDisplayCount].append(window)
     }
 
@@ -326,11 +439,15 @@ public enum WindowDrillGenerator {
     displayCount: Int,
     enabledFamilies: Set<DrillLayoutFamily>
   ) -> Bool {
-    !feasibleDisplayCounts(
-      windowCount: min(windowCount, displayCount * 4),
-      displayCount: displayCount,
-      enabledFamilies: enabledFamilies
-    ).isEmpty
+    guard windowCount > 0, displayCount > 0 else { return false }
+    let usableWindowCount = min(windowCount, displayCount * 4)
+    return (1...usableWindowCount).contains { activeWindowCount in
+      !feasibleDisplayCounts(
+        windowCount: activeWindowCount,
+        displayCount: displayCount,
+        enabledFamilies: enabledFamilies
+      ).isEmpty
+    }
   }
 
   private static func feasibleDisplayCounts(
