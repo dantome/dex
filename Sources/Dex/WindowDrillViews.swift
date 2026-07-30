@@ -209,7 +209,7 @@ struct WindowDrillSetupView: View {
             model.magnetShortcuts.zoneShortcuts.isEmpty ? Color.orange : Color.green
           )
           .font(.callout.weight(.medium))
-          Text("Dex watches every selected window, verifies a stable match, and advances automatically.")
+          Text("Each round uses a subset of your selected windows. Dex verifies a stable match and advances automatically.")
             .font(.callout)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)

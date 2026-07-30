@@ -361,7 +361,7 @@ final class WindowDrillModel: ObservableObject {
       displayCount: displays.count,
       enabledFamilies: selectedLayoutFamilies
     ) else {
-      return "These layout types cannot fit \(selectedWindowIDs.count) selected windows across \(displays.count) displays."
+      return "These layout types cannot make a challenge from the selected windows across \(displays.count) displays."
     }
     return nil
   }
@@ -523,6 +523,7 @@ final class WindowDrillModel: ObservableObject {
       if WindowDrillGeometry.matchesWindow(
         actual: actual,
         target: target,
+        for: assignment.zone,
         on: display
       ) {
         matches.insert(assignment.id)

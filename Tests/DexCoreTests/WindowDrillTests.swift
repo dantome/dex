@@ -2,7 +2,7 @@ import DexCore
 import XCTest
 
 final class WindowDrillTests: XCTestCase {
-  func testEveryRoundAssignsEveryWindowExactlyOnce() {
+  func testEveryRoundUsesUniqueWindowsFromSelectedPool() {
     let windows = (1...7).map {
       DrillWindow(id: "window-\($0)", applicationName: "App \($0)", windowTitle: "Window")
     }
@@ -24,12 +24,35 @@ final class WindowDrillTests: XCTestCase {
 
     XCTAssertEqual(rounds.count, 25)
     for round in rounds {
-      XCTAssertEqual(Set(round.assignments.map(\.window.id)), Set(windows.map(\.id)))
-      XCTAssertEqual(round.assignments.count, windows.count)
+      let assignedWindowIDs = round.assignments.map(\.window.id)
+      XCTAssertEqual(Set(assignedWindowIDs).count, assignedWindowIDs.count)
+      XCTAssertTrue(Set(assignedWindowIDs).isSubset(of: Set(windows.map(\.id))))
+      XCTAssertTrue((1...windows.count).contains(assignedWindowIDs.count))
       XCTAssertTrue(round.assignments.allSatisfy { assignment in
         displays.contains { $0.id == assignment.displayID }
       })
     }
+  }
+
+  func testThreeSelectedWindowsProduceOneTwoAndThreeWindowRounds() {
+    let windows = (1...3).map {
+      DrillWindow(id: "window-\($0)", applicationName: "App", windowTitle: "\($0)")
+    }
+    let display = DrillDisplay(
+      id: "display",
+      name: "Display",
+      frame: DrillRect(x: 0, y: 0, width: 1200, height: 900)
+    )
+    var random = SeededGenerator(seed: 27)
+
+    let rounds = WindowDrillGenerator.generate(
+      windows: windows,
+      displays: [display],
+      roundCount: 3,
+      using: &random
+    )
+
+    XCTAssertEqual(Set(rounds.map { $0.assignments.count }), [1, 2, 3])
   }
 
   func testOneDisplayThreeWindowRoundsUseCompleteNonOverlappingLayouts() {
@@ -109,7 +132,7 @@ final class WindowDrillTests: XCTestCase {
     )
   }
 
-  func testGeneratorCanRequireQuartersAndRejectImpossibleSelections() {
+  func testGeneratorCanRequireQuartersAndUseSmallerCompatibleSubsets() {
     let windows = (1...4).map {
       DrillWindow(id: "window-\($0)", applicationName: "App", windowTitle: "\($0)")
     }
@@ -132,11 +155,18 @@ final class WindowDrillTests: XCTestCase {
     XCTAssertTrue(
       rounds.flatMap(\.assignments).allSatisfy { $0.zone.layoutFamily == .quarters }
     )
-    XCTAssertFalse(
+    XCTAssertTrue(
       WindowDrillGenerator.canGenerate(
         windowCount: 4,
         displayCount: 1,
         enabledFamilies: [.fullScreen]
+      )
+    )
+    XCTAssertFalse(
+      WindowDrillGenerator.canGenerate(
+        windowCount: 3,
+        displayCount: 1,
+        enabledFamilies: [.quarters]
       )
     )
   }
@@ -196,6 +226,131 @@ final class WindowDrillTests: XCTestCase {
         on: display
       )
     )
+  }
+
+  func testWindowMatchingAcceptsBottomHalfClampedToApplicationMinimumHeight() {
+    // Mirrors the Built-in display and ChatGPT frame from the regression screenshot.
+    let display = DrillDisplay(
+      id: "main",
+      name: "Built-in",
+      frame: DrillRect(x: 0, y: 33, width: 1512, height: 949)
+    )
+    let target = DrillZone.bottomHalf.frame(in: display)
+
+    XCTAssertTrue(
+      WindowDrillGeometry.matchesWindow(
+        actual: DrillRect(x: 0, y: 247, width: 1512, height: 735),
+        target: target,
+        for: .bottomHalf,
+        on: display
+      )
+    )
+  }
+
+  func testMinimumSizeMatchingDoesNotAcceptMaximizedWindowAsBottomHalf() {
+    let display = DrillDisplay(
+      id: "main",
+      name: "Built-in",
+      frame: DrillRect(x: 0, y: 33, width: 1512, height: 949)
+    )
+    let target = DrillZone.bottomHalf.frame(in: display)
+
+    XCTAssertFalse(
+      WindowDrillGeometry.matchesWindow(
+        actual: display.frame,
+        target: target,
+        for: .bottomHalf,
+        on: display
+      )
+    )
+  }
+
+  func testMinimumSizeMatchingRequiresTheRequestedEdgeAnchor() {
+    let display = DrillDisplay(
+      id: "main",
+      name: "Built-in",
+      frame: DrillRect(x: 0, y: 33, width: 1512, height: 949)
+    )
+    let target = DrillZone.bottomHalf.frame(in: display)
+
+    XCTAssertFalse(
+      WindowDrillGeometry.matchesWindow(
+        actual: DrillRect(x: 0, y: 150, width: 1512, height: 735),
+        target: target,
+        for: .bottomHalf,
+        on: display
+      )
+    )
+  }
+
+  func testWindowMatchingRecognizesExactLeftMiddleAndRightThirds() {
+    let display = DrillDisplay(
+      id: "main",
+      name: "Display",
+      frame: DrillRect(x: 0, y: 24, width: 1200, height: 876)
+    )
+
+    for zone in [DrillZone.leftThird, .middleThird, .rightThird] {
+      XCTAssertTrue(
+        WindowDrillGeometry.matchesWindow(
+          actual: zone.frame(in: display),
+          target: zone.frame(in: display),
+          for: zone,
+          on: display
+        ),
+        "Expected an exact \(zone.rawValue) placement to match"
+      )
+    }
+  }
+
+  func testWindowMatchingDoesNotMistakeHalvesForThirds() {
+    let display = DrillDisplay(
+      id: "main",
+      name: "Display",
+      frame: DrillRect(x: 0, y: 24, width: 1200, height: 876)
+    )
+
+    XCTAssertFalse(
+      WindowDrillGeometry.matchesWindow(
+        actual: DrillZone.leftHalf.frame(in: display),
+        target: DrillZone.leftThird.frame(in: display),
+        for: .leftThird,
+        on: display
+      )
+    )
+    XCTAssertFalse(
+      WindowDrillGeometry.matchesWindow(
+        actual: DrillZone.rightHalf.frame(in: display),
+        target: DrillZone.rightThird.frame(in: display),
+        for: .rightThird,
+        on: display
+      )
+    )
+  }
+
+  func testWindowMatchingAllowsBoundedMinimumWidthExpansionForThirds() {
+    let display = DrillDisplay(
+      id: "main",
+      name: "Display",
+      frame: DrillRect(x: 0, y: 24, width: 1200, height: 876)
+    )
+    let expandedFrames: [DrillZone: DrillRect] = [
+      .leftThird: DrillRect(x: 0, y: 24, width: 500, height: 876),
+      .middleThird: DrillRect(x: 350, y: 24, width: 500, height: 876),
+      .rightThird: DrillRect(x: 700, y: 24, width: 500, height: 876),
+    ]
+
+    for zone in [DrillZone.leftThird, .middleThird, .rightThird] {
+      XCTAssertTrue(
+        WindowDrillGeometry.matchesWindow(
+          actual: expandedFrames[zone]!,
+          target: zone.frame(in: display),
+          for: zone,
+          on: display
+        ),
+        "Expected a minimum-width \(zone.rawValue) placement to match"
+      )
+    }
   }
 
   func testDisplayTopologyIgnoresOrderAndSubpixelNoise() {
