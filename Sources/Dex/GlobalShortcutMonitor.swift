@@ -136,7 +136,7 @@ final class GlobalShortcutMonitor: ObservableObject {
 
     guard type == .keyDown else { return Unmanaged.passUnretained(event) }
     let trigger = configuration.trigger
-    guard triggerIsPressed(trigger, for: event) else {
+    guard triggerIsPressed(trigger) else {
       return Unmanaged.passUnretained(event)
     }
 
@@ -170,7 +170,7 @@ final class GlobalShortcutMonitor: ObservableObject {
     )
   }
 
-  private func triggerIsPressed(_ trigger: TriggerKey, for event: CGEvent) -> Bool {
+  private func triggerIsPressed(_ trigger: TriggerKey) -> Bool {
     if triggerState.isPressed(trigger) { return true }
 
     // If Dex saw the other physical key in the same modifier family, do not
@@ -182,9 +182,10 @@ final class GlobalShortcutMonitor: ObservableObject {
       return true
     }
 
-    // This covers the uncommon case where Dex starts while the trigger is
-    // already held and therefore never received its flagsChanged event.
-    return event.flags.contains(eventFlag(for: trigger))
+    // The physical key-state query covers the uncommon case where Dex starts
+    // while the trigger is already held. Never fall back to the generic event
+    // flag: it cannot distinguish Left Command from Right Command.
+    return false
   }
 
   private func activeAuxiliaryModifiers(

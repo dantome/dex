@@ -14,8 +14,9 @@ fi
 swift build --package-path "$ROOT" --configuration "$CONFIGURATION" --product Dex
 BIN_DIR="$(swift build --package-path "$ROOT" --configuration "$CONFIGURATION" --show-bin-path)"
 
-APP="$ROOT/build/Dex.app"
-rm -rf "$APP"
+APP="$ROOT/build/staging.noindex/Dex.app"
+LEGACY_APP="$ROOT/build/Dex.app"
+rm -rf "$APP" "$LEGACY_APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 ditto "$BIN_DIR/Dex" "$APP/Contents/MacOS/Dex"

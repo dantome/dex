@@ -5,11 +5,13 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 INSTALL_ROOT="${DEX_INSTALL_DIR:-$HOME/Applications}"
 TARGET="$INSTALL_ROOT/Dex.app"
+PACKAGED_APP="$ROOT/build/staging.noindex/Dex.app"
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
 running_dex_processes() {
     ps -axo pid=,command= | awk \
         -v installed="$TARGET/Contents/MacOS/Dex" \
-        -v packaged="$ROOT/build/Dex.app/Contents/MacOS/Dex" \
+        -v packaged="$PACKAGED_APP/Contents/MacOS/Dex" \
         -v development="$ROOT/.build/" '
         $2 == installed || $2 == packaged || (index($2, development) == 1 && $2 ~ /\/Dex$/) {
             print $1
@@ -40,7 +42,11 @@ stop_running_dex() {
 stop_running_dex
 mkdir -p "$INSTALL_ROOT"
 rm -rf "$TARGET"
-ditto "$ROOT/build/Dex.app" "$TARGET"
+ditto "$PACKAGED_APP" "$TARGET"
+rm -rf "$ROOT/build/staging.noindex"
+touch "$TARGET"
+"$LSREGISTER" -f "$TARGET" >/dev/null 2>&1 || true
+mdimport -i "$TARGET" >/dev/null 2>&1 || true
 
 open "$TARGET"
 

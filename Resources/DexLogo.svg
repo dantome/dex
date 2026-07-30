@@ -1,20 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
-  <title id="title">Dex logo</title>
-  <desc id="description">A rounded letter D containing a right-pointing action arrow.</desc>
-  <defs>
-    <linearGradient id="background" x1="160" y1="128" x2="864" y2="912" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#7257FF"/>
-      <stop offset="0.52" stop-color="#4936C8"/>
-      <stop offset="1" stop-color="#211843"/>
-    </linearGradient>
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="256"
+     height="256"
+     viewBox="0 0 256 256"
+     color="#000000"
+     role="img"
+     aria-labelledby="title desc">
+  <title id="title">Key chord symbol</title>
+  <desc id="desc">Four rounded diagonal strokes forming a broken X.</desc>
 
-  <rect x="72" y="72" width="880" height="880" rx="202" fill="url(#background)"/>
-  <rect x="74" y="74" width="876" height="876" rx="200" fill="none" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="4"/>
-
-  <g fill="none" stroke="#FAFAFF" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" transform="translate(120 120) scale(28)">
-    <path d="M5.2 4.3h6.9c6 0 10.8 4.3 10.8 9.7s-4.8 9.7-10.8 9.7H5.2V4.3Z"/>
-    <path d="M10.3 14h8.2m-3.1-3.1 3.1 3.1-3.1 3.1"/>
+  <!--
+    Monochrome companion mark for menu-bar and small UI use.
+    The stroke inherits currentColor, so it can be tinted without editing paths.
+  -->
+  <g id="chord-mark"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="24"
+     stroke-linecap="round">
+    <path id="stroke-northwest" d="M62 62 L107 107" />
+    <path id="stroke-northeast" d="M149 107 L194 62" />
+    <path id="stroke-southwest" d="M107 149 L62 194" />
+    <path id="stroke-southeast" d="M149 149 L194 194" />
   </g>
 </svg>

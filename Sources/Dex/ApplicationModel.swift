@@ -9,6 +9,7 @@ final class DexApplicationModel: ObservableObject {
   let monitor: GlobalShortcutMonitor
   let executor: ActionExecutor
   let history: ExecutionHistoryStore
+  let windowDrill: WindowDrillModel
 
   @Published private(set) var launchAtLoginEnabled = false
   @Published private(set) var launchAtLoginError: String?
@@ -25,6 +26,7 @@ final class DexApplicationModel: ObservableObject {
     self.monitor = monitor
     self.executor = executor
     self.history = history
+    windowDrill = WindowDrillModel(shortcutStore: store)
     isMenuBarItemVisible = store.configuration.showsMenuBarItem
 
     store.onConfigurationChanged = { [weak self, weak monitor] configuration in

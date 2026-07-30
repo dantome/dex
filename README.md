@@ -22,11 +22,13 @@ cd /path/to/dex
 ./scripts/install.sh
 ```
 
-The installer builds and signs `Dex.app`, copies it to `~/Applications`, and opens the app. It automatically uses an available Developer ID or Apple Development certificate so macOS keeps Accessibility approval across rebuilds. If no persistent signing identity is available, it falls back to ad-hoc signing and prints a warning. Set `DEX_SIGNING_IDENTITY` to override the selected identity.
+The installer builds and signs `Dex.app`, copies it to `~/Applications`, removes its disposable staging bundle, and opens the app. This keeps Finder and Spotlight from showing the staging artifact as a third copy of Dex. It automatically uses an available Developer ID or Apple Development certificate so macOS keeps Accessibility approval across rebuilds. If no persistent signing identity is available, it falls back to ad-hoc signing and prints a warning. Set `DEX_SIGNING_IDENTITY` to override the selected identity.
 
-Dex is a menu-bar-only app. Open the circled D icon, choose **Settings…**, and grant Accessibility access when prompted. If macOS also asks for Input Monitoring, enable Dex there and relaunch it. Installing the `.app` before granting access gives macOS a stable app identity.
+Dex is a menu-bar-only app. Open the key-chord icon, choose **Settings…**, and grant Accessibility access when prompted. If macOS also asks for Input Monitoring, enable Dex there and relaunch it. Installing the `.app` before granting access gives macOS a stable app identity.
 
 The General settings can hide Dex's menu-bar item while its shortcuts continue running. Reopen Dex from Applications or Spotlight whenever you need to bring Settings back. The same screen includes a validated JSON editor and copy button for moving the complete configuration to another Mac.
+
+Choose **About Dex** from the menu-bar menu to see the app icon and installed version.
 
 For a development build without installation:
 
@@ -69,6 +71,12 @@ cd /path/to/dex
 swift build
 swift test
 ./scripts/build-app.sh release
+```
+
+After editing the app icon in `Resources/DexAppIcon.svg`, regenerate the packaged macOS icon with:
+
+```sh
+./scripts/generate-icons.sh
 ```
 
 The Swift package has two targets:
