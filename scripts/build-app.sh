@@ -25,9 +25,9 @@ ditto "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 
 if [[ -z "$SIGNING_IDENTITY" ]]; then
     AVAILABLE_IDENTITIES="$(security find-identity -v -p codesigning 2>/dev/null || true)"
-    SIGNING_IDENTITY="$(awk '/"Developer ID Application:/ { print $2; exit }' <<< "$AVAILABLE_IDENTITIES")"
+    SIGNING_IDENTITY="$(awk -F\" '/"Developer ID Application:/ { print $2; exit }' <<< "$AVAILABLE_IDENTITIES")"
     if [[ -z "$SIGNING_IDENTITY" ]]; then
-        SIGNING_IDENTITY="$(awk '/"Apple Development:/ { print $2; exit }' <<< "$AVAILABLE_IDENTITIES")"
+        SIGNING_IDENTITY="$(awk -F\" '/"Apple Development:/ { print $2; exit }' <<< "$AVAILABLE_IDENTITIES")"
     fi
 fi
 
@@ -36,7 +36,14 @@ if [[ -z "$SIGNING_IDENTITY" ]]; then
     echo "Warning: no persistent signing identity found; macOS may require Accessibility access again after rebuilding." >&2
 fi
 
-codesign --force --deep --timestamp=none --sign "$SIGNING_IDENTITY" "$APP"
+SIGNING_ARGUMENTS=(--force --deep --sign "$SIGNING_IDENTITY")
+if [[ "$SIGNING_IDENTITY" == Developer\ ID\ Application:* ]]; then
+    SIGNING_ARGUMENTS+=(--options runtime --timestamp)
+else
+    SIGNING_ARGUMENTS+=(--timestamp=none)
+fi
+
+codesign "${SIGNING_ARGUMENTS[@]}" "$APP"
 
 echo "Signed Dex with: $SIGNING_IDENTITY"
 echo "$APP"
