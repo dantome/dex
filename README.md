@@ -1,85 +1,149 @@
-# Dex
+<div align="center">
+  <img src="Resources/DexAppIcon.svg" alt="DEX icon" width="120" />
 
-Dex is a native Swift menu-bar app for macOS that turns a physical modifier key plus another key into an action. It is inspired by RCMD, defaults to Right Command, and is deliberately small and extensible.
+  # DEX
 
-The initial action types are:
+  **A native macOS shortcut layer for the way you actually work.**
 
-- Open a macOS application by `.app` path or bundle identifier.
-- Activate Finder or open a specific directory in Finder.
-- Run a shell command in Terminal, which is useful for long-running dev servers.
-- Run a shell command in the background and append output to `~/Library/Application Support/Dex/dex.log`.
-- Open a URL.
-- Run a named workflow from Apple's Shortcuts app.
+  Hold one physical modifier, tap a key, and jump to an app, folder, URL, Apple Shortcut, or development command.
 
-Shortcuts may also add Shift, Control, Option, or Command to the selected trigger. The trigger's own modifier is implicit, so recording Right Command + D produces `Right ⌘ + D`, not a duplicated Command modifier. The global trigger can be Right Command, Right Option, Fn/Globe, or the corresponding supported left/control keys.
+  ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-111111?style=flat-square&logo=apple&logoColor=white)
+  ![Swift 5.10](https://img.shields.io/badge/Swift-5.10-F05138?style=flat-square&logo=swift&logoColor=white)
+  ![SwiftUI + AppKit](https://img.shields.io/badge/SwiftUI%20%2B%20AppKit-native-5E5CE6?style=flat-square)
+</div>
 
-## Install
+<p align="center">
+  <img src="assets/dex-demo.gif" alt="DEX demo showing app, command, Finder, and preference shortcuts" width="900" />
+</p>
 
-Dex requires macOS 14 or newer and the full Xcode toolchain.
+DEX turns a normally underused physical modifier—**Right Command** by default—into a personal command palette that lives in muscle memory. It stays out of the way in the menu bar and gives each key a useful job.
+
+## Why I built it
+
+I spend a lot of time moving between windows, terminals, browsers, and tools. After I started using and enjoying [Magnet](https://magnet.crowdcafe.com/) for fast window management, I wanted that same immediate, keyboard-first feeling for the rest of my Mac.
+
+DEX is my answer: one modifier becomes a layer of shortcuts shaped around whatever I am doing that week. I also like being able to ask Claude or Codex to add or edit one for me—“make a shortcut that restarts this local dev server,” for example—without breaking focus to wire it up by hand.
+
+### Window Drill
+
+DEX also includes a practice mode for building the handoff between DEX and Magnet into muscle memory. Choose a set of open windows and layout families, then work through timed rounds: DEX shows which window to summon and where Magnet should place it, verifies the final geometry, scores the round, and advances automatically. DEX observes window positions for the drill; it never moves the windows itself. Magnet is optional for DEX's shortcut features and is only used by this training workflow.
+
+Open **Window Drill…** from the DEX menu-bar menu to choose 5, 10, or 15 rounds, a time limit, a display, and layouts such as halves, thirds, two-thirds, quarters, or full screen.
+
+## What DEX can do
+
+| Action | Example |
+| --- | --- |
+| Open an application | `Right ⌘ + C` → ChatGPT |
+| Open Finder | Jump directly to a project or home directory |
+| Run a command | Restart a dev server in its working directory |
+| Open a URL | Go straight to a dashboard or local environment |
+| Run an Apple Shortcut | Trigger an existing macOS automation |
+
+Bindings can also include Shift, Control, Option, or Command in addition to the physical trigger. DEX consumes matched key presses so the foreground app does not receive them; unmatched combinations keep their normal macOS behavior.
+
+## Quick start
+
+DEX requires **macOS 14 or newer**.
+
+### Download DEX — recommended
+
+1. Download `Dex.dmg` from the [latest GitHub release](https://github.com/dantome/dex/releases/latest).
+2. Open the disk image and drag **Dex** to **Applications**.
+3. Open Dex, then use its menu-bar icon to choose **Settings…**.
+4. Grant **Accessibility** access when macOS asks. If prompted for **Input Monitoring**, enable Dex there too and relaunch it.
+5. Add a shortcut, choose an action, and record a key.
+6. Hold **Right Command** (the default trigger) and press that key.
+
+Release builds are signed with a Developer ID certificate and notarized by Apple. You do not need Xcode, an Apple developer account, or the Mac App Store to install them. macOS still requires you to approve Accessibility access because DEX listens for the shortcuts you configure.
+
+### Build and customize from source
+
+Use this path if you want to inspect the code, change DEX itself, or contribute. It requires the full Xcode toolchain.
 
 ```sh
-cd /path/to/dex
+git clone https://github.com/dantome/dex.git
+cd dex
 ./scripts/install.sh
 ```
 
-The installer builds and signs `Dex.app`, copies it to `~/Applications`, removes its disposable staging bundle, and opens the app. This keeps Finder and Spotlight from showing the staging artifact as a third copy of Dex. It automatically uses an available Developer ID or Apple Development certificate so macOS keeps Accessibility approval across rebuilds. If no persistent signing identity is available, it falls back to ad-hoc signing and prints a warning. Set `DEX_SIGNING_IDENTITY` to override the selected identity.
+The local installer builds `Dex.app`, copies it to `~/Applications`, and opens it. It uses an available Developer ID or Apple Development identity when possible, otherwise it falls back to ad-hoc signing. Ad-hoc builds work without a paid developer account, but macOS may show additional Gatekeeper prompts or ask you to grant Accessibility access again after rebuilding. Set `DEX_SIGNING_IDENTITY` to use a specific local identity.
 
-Dex is a menu-bar-only app. Open the key-chord icon, choose **Settings…**, and grant Accessibility access when prompted. If macOS also asks for Input Monitoring, enable Dex there and relaunch it. Installing the `.app` before granting access gives macOS a stable app identity.
+For a development build without installation, run `swift run Dex`. The packaged app is the better choice when testing macOS permissions.
 
-The General settings can hide Dex's menu-bar item while its shortcuts continue running. Reopen Dex from Applications or Spotlight whenever you need to bring Settings back. The same screen includes a validated JSON editor and copy button for moving the complete configuration to another Mac.
+Downloading a release does not limit customization: shortcuts, commands, URLs, folders, and the trigger key are stored in your user configuration outside the signed app. Forking and rebuilding is only necessary when changing DEX's Swift code.
 
-Choose **About Dex** from the menu-bar menu to see the app icon and installed version.
+## Ask AI to make any shortcut
 
-For a development build without installation:
+This repository includes the [`customize-dex`](.agents/skills/customize-dex/SKILL.md) skill. From the repository root, open a new Codex task and invoke it by name:
 
-```sh
-swift run Dex
+```text
+Use $customize-dex to make Right Command + R restart the local dev server for this project.
 ```
 
-The packaged app is preferable for permission testing.
+More ideas:
 
-## Use
+```text
+Use $customize-dex to bind Right Command + C to ChatGPT.
+Use $customize-dex to open this project in Finder with Right Command + H.
+Use $customize-dex to add a shortcut for my local dashboard URL.
+```
 
-1. Open **Settings…** from the menu-bar icon.
-2. Add a shortcut and choose its key and action.
-3. Hold the configured physical trigger, Right Command by default, and press the shortcut key.
+Agents that discover repo-local skills will load it automatically when your request matches. If your AI tool does not, point it directly at `.agents/skills/customize-dex/SKILL.md`. The skill teaches the agent DEX's configuration format, safe editing workflow, key codes, validation rules, and how to apply changes without losing existing shortcuts.
 
-When a binding matches, Dex consumes the key press so the foreground app does not also handle it. Unmatched combinations keep their normal macOS behavior.
+You can still configure everything manually in **Settings → Shortcuts**. The **General** tab also contains a validated JSON editor and a copy button for moving a complete setup to another Mac.
 
-Dex keeps deleted shortcuts in **Recently Deleted** for 30 days by default, where they can be restored or permanently removed. Turn **Keep deleted shortcuts for 30 days** off in General settings to delete new shortcuts immediately. The **History** tab shows the newest 1,000 shortcut runs and can be cleared at any time.
+## Useful details
 
-For a dev server, create a **Run Command** action such as `npm run dev`, choose the project directory, and leave **Open in Terminal** enabled. Right Command + the selected key then opens a visible, long-lived Terminal session in that directory. Enable **Close Terminal on completion** for finite commands whose Terminal tab should close automatically when they finish.
+- Choose Right Command, Right Option, Fn/Globe, or a supported left/control key as the global trigger.
+- Run long-lived commands in a visible Terminal session, or run background commands and append output to `~/Library/Application Support/Dex/dex.log`.
+- Keep deleted shortcuts in **Recently Deleted** for 30 days and restore them when needed.
+- Review the newest 1,000 shortcut runs in **History**.
+- Hide the menu-bar item while shortcuts continue running; reopen DEX from Applications or Spotlight.
+- Move a complete configuration between Macs with the JSON editor. App and folder paths may need adjustment.
 
-To open Finder, choose the **Open Finder** action. Leave **Directory** empty to activate Finder, or choose a directory to open a Finder window at that location.
+## Security
 
-## Security model
+DEX runs as the current macOS user and never elevates privileges. App, URL, Finder, and Apple Shortcut actions use native system APIs or tools. Shell actions can run arbitrary commands with your permissions, so review them before saving.
 
-Dex runs as the current macOS user. App, URL, and Apple Shortcut actions use native system APIs or tools. Shell actions can run arbitrary commands with the user's permissions; Dex does not elevate privileges. Review shell actions before adding them.
-
-The configuration file is written with `0600` permissions at:
+Configuration and history are stored privately with `0600` permissions:
 
 ```text
 ~/Library/Application Support/Dex/shortcuts.json
+~/Library/Application Support/Dex/history.json
 ```
 
-Shortcut history is also private to the current user and stored with `0600` permissions at `~/Library/Application Support/Dex/history.json`.
+## License
+
+DEX is available under the [MIT License](LICENSE). Fork it, adapt it, and make the shortcut layer your own.
 
 ## Development
 
 ```sh
-cd /path/to/dex
 swift build
 swift test
 ./scripts/build-app.sh release
 ```
 
-After editing the app icon in `Resources/DexAppIcon.svg`, regenerate the packaged macOS icon with:
+The package is intentionally small:
+
+- `DexCore` contains Codable models, key definitions, persistence, history, and shared utilities.
+- `Dex` contains the SwiftUI/AppKit menu-bar app, global event tap, settings UI, and action execution.
+
+After editing `Resources/DexAppIcon.svg`, regenerate the packaged icon with `./scripts/generate-icons.sh`.
+
+### Publishing a release
+
+Public releases use a separate, fail-closed workflow: a **Developer ID Application** identity, hardened runtime, secure timestamp, Apple notarization, and a stapled ticket are all required. The local build's ad-hoc fallback is never accepted for a release.
+
+After storing notarization credentials in Keychain with `notarytool`, maintainers can build a release disk image with:
 
 ```sh
-./scripts/generate-icons.sh
+DEX_NOTARY_PROFILE=DEX_NOTARY ./scripts/release.sh
 ```
 
-The Swift package has two targets:
+The script verifies the signature and notarization ticket and writes the upload-ready disk image to `dist/`. See [`docs/RELEASING.md`](docs/RELEASING.md) for the one-time certificate setup and complete checklist.
 
-- `DexCore`: Codable models, key catalog, persistence, and shared utilities.
-- `Dex`: SwiftUI/AppKit menu-bar app, global event tap, and action execution.
+---
+
+<p align="center"><sub>Built for fewer context switches and faster muscle memory.</sub></p>

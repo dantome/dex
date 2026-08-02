@@ -1,0 +1,4 @@
+interface:
+  display_name: "Customize DEX"
+  short_description: "Teach DEX a shortcut or tailor its behavior"
+  default_prompt: "Use $customize-dex to add or edit a DEX shortcut for my current workflow."
