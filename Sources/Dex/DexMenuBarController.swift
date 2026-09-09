@@ -289,7 +289,7 @@ private final class DexSettingsWindowController: NSWindowController {
   }
 }
 
-private final class DexShortcutMenuItemView: NSView {
+final class DexShortcutMenuItemView: NSView {
   private let title: String
   private let shortcut: String
   private let action: () -> Void
@@ -299,6 +299,8 @@ private final class DexShortcutMenuItemView: NSView {
     self.shortcut = shortcut
     self.action = action
     super.init(frame: NSRect(x: 0, y: 0, width: width, height: 24))
+    // Native menu items, including the last result, can make the menu wider.
+    autoresizingMask = [.width]
     setAccessibilityElement(true)
     setAccessibilityRole(.menuItem)
     setAccessibilityLabel("\(title), \(shortcut)")
