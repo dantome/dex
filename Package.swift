@@ -21,6 +21,10 @@ let package = Package(
       name: "DexCoreTests",
       dependencies: ["DexCore"]
     ),
+    .testTarget(
+      name: "DexTests",
+      dependencies: ["Dex"]
+    ),
   ],
   swiftLanguageVersions: [.v5]
 )
