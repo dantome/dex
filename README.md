@@ -96,7 +96,9 @@ You can still configure everything manually in **Settings → Shortcuts**. The *
 ## Useful details
 
 - Choose Right Command, Right Option, Fn/Globe, or a supported left/control key as the global trigger.
-- Run long-lived commands in a visible Terminal session, or run background commands and append output to `~/Library/Application Support/Dex/dex.log`.
+- Choose Terminal or Ghostty in **General → Commands → Default terminal**. This applies immediately to all shortcuts with **Open in terminal** enabled. Existing configurations keep Terminal until you change the preference.
+- Ghostty commands open in a new app instance using your configured working directory. Enable **Close terminal on completion** to close the command window when it exits; otherwise, the output stays visible until you press a key. Your existing Ghostty windows stay open.
+- Run background commands and append output to `~/Library/Application Support/Dex/dex.log`.
 - Keep deleted shortcuts in **Recently Deleted** for 30 days and restore them when needed.
 - Review the newest 1,000 shortcut runs in **History**.
 - Hide the menu-bar item while shortcuts continue running; reopen DEX from Applications or Spotlight.

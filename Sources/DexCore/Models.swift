@@ -340,6 +340,7 @@ public struct DexConfiguration: Codable, Equatable, Sendable {
   public var version: Int
   public var trigger: TriggerKey
   public var launchAtLogin: Bool
+  public var defaultTerminal: TerminalApplication
   public var showsMenuBarItem: Bool
   public var archivesDeletedShortcuts: Bool
   public var shortcuts: [DexShortcut]
@@ -349,6 +350,7 @@ public struct DexConfiguration: Codable, Equatable, Sendable {
     version: Int = currentVersion,
     trigger: TriggerKey = .rightCommand,
     launchAtLogin: Bool = false,
+    defaultTerminal: TerminalApplication = .terminal,
     showsMenuBarItem: Bool = true,
     archivesDeletedShortcuts: Bool = true,
     shortcuts: [DexShortcut] = [],
@@ -357,6 +359,7 @@ public struct DexConfiguration: Codable, Equatable, Sendable {
     self.version = version
     self.trigger = trigger
     self.launchAtLogin = launchAtLogin
+    self.defaultTerminal = defaultTerminal
     self.showsMenuBarItem = showsMenuBarItem
     self.archivesDeletedShortcuts = archivesDeletedShortcuts
     self.shortcuts = shortcuts
@@ -424,6 +427,7 @@ public struct DexConfiguration: Codable, Equatable, Sendable {
     case version
     case trigger
     case launchAtLogin
+    case defaultTerminal
     case showsMenuBarItem
     case archivesDeletedShortcuts
     case shortcuts
@@ -438,6 +442,8 @@ public struct DexConfiguration: Codable, Equatable, Sendable {
     )
     trigger = try values.decodeIfPresent(TriggerKey.self, forKey: .trigger) ?? .rightCommand
     launchAtLogin = try values.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? false
+    defaultTerminal =
+      try values.decodeIfPresent(TerminalApplication.self, forKey: .defaultTerminal) ?? .terminal
     showsMenuBarItem = try values.decodeIfPresent(Bool.self, forKey: .showsMenuBarItem) ?? true
     archivesDeletedShortcuts =
       try values.decodeIfPresent(Bool.self, forKey: .archivesDeletedShortcuts) ?? true

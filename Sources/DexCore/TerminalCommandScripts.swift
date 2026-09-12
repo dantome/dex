@@ -1,6 +1,23 @@
 import Foundation
 
 public enum TerminalCommandScripts {
+  public static func ghosttyArguments(
+    command: String,
+    workingDirectory: URL,
+    closeOnCompletion: Bool
+  ) -> [String] {
+    [
+      "--working-directory=\(workingDirectory.path)",
+      "--wait-after-command=\(!closeOnCompletion)",
+      "--abnormal-command-exit-runtime=0",
+      "--window-save-state=never",
+      "--quit-after-last-window-closed=true",
+      // Cocoa treats bare executable arguments after -e as files to open,
+      // causing a second launch path and an execution confirmation dialog.
+      "--initial-command=/bin/zsh -lc \(ShellEscaping.singleQuoted(command))",
+    ]
+  }
+
   public static func command(
     _ command: String,
     workingDirectory: URL,

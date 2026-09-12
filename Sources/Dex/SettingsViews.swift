@@ -138,6 +138,7 @@ private struct ShortcutManagerView: View {
               get: { store.shortcut(id: selection) ?? currentShortcut },
               set: { store.update($0) }
             ),
+            defaultTerminal: store.configuration.defaultTerminal,
             trigger: store.configuration.trigger,
             conflict: store.conflictingShortcut(for: currentShortcut),
             recordingChanged: { isRecording in
@@ -456,6 +457,7 @@ private struct RecentlyDeletedShortcutsView: View {
 
 private struct ShortcutEditorView: View {
   @Binding var shortcut: DexShortcut
+  let defaultTerminal: TerminalApplication
   let trigger: TriggerKey
   let conflict: DexShortcut?
   let recordingChanged: (Bool) -> Void
@@ -530,9 +532,12 @@ private struct ShortcutEditorView: View {
         directory: workingDirectoryBinding,
         chooseDirectory: chooseWorkingDirectory
       )
-      Toggle("Open in Terminal", isOn: terminalBinding)
+      Toggle("Open in terminal", isOn: terminalBinding)
       if terminalBinding.wrappedValue {
-        Toggle("Close Terminal on completion", isOn: closeTerminalOnCompletionBinding)
+        Toggle("Close terminal on completion", isOn: closeTerminalOnCompletionBinding)
+        Text("Uses \(defaultTerminal.displayName). Change the default terminal in General.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
       }
       BackgroundCommandLogRow(openLog: openCommandLog)
 
@@ -1418,6 +1423,24 @@ private struct GeneralSettingsView: View {
           )
           .font(.caption)
           .foregroundStyle(.secondary)
+        }
+      }
+
+      Section("Commands") {
+        Picker("Default terminal", selection: $store.configuration.defaultTerminal) {
+          ForEach(TerminalApplication.allCases) { terminal in
+            Text(terminal.displayName).tag(terminal)
+          }
+        }
+        Text("Used by every shortcut with Open in terminal enabled.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        if NSWorkspace.shared.urlForApplication(
+          withBundleIdentifier: store.configuration.defaultTerminal.bundleIdentifier
+        ) == nil {
+          Text("\(store.configuration.defaultTerminal.displayName) is not installed. Install it or choose another terminal.")
+            .font(.caption)
+            .foregroundStyle(.red)
         }
       }
 

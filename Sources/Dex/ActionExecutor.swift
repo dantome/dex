@@ -8,7 +8,7 @@ enum ActionExecutionError: LocalizedError {
   case invalidURL(String)
   case emptyCommand
   case emptyShortcutName
-  case terminalUnavailable
+  case terminalUnavailable(TerminalApplication)
   case invalidWorkingDirectory(String)
   case invalidDirectory(String)
   case finderUnavailable
@@ -19,7 +19,8 @@ enum ActionExecutionError: LocalizedError {
     case .invalidURL(let url): "'\(url)' is not a valid URL."
     case .emptyCommand: "The command is empty."
     case .emptyShortcutName: "The Apple Shortcut name is empty."
-    case .terminalUnavailable: "Terminal.app could not be found."
+    case .terminalUnavailable(let terminal):
+      "\(terminal.displayName).app could not be found. Install it or choose another default terminal in General."
     case .invalidWorkingDirectory(let path): "Working directory '\(path)' does not exist."
     case .invalidDirectory(let path): "Directory '\(path)' does not exist."
     case .finderUnavailable: "Finder.app could not be found."
@@ -32,11 +33,13 @@ final class ActionExecutor: ObservableObject {
   @Published private(set) var lastResult: String?
 
   private let history: ExecutionHistoryStore
+  private let store: ShortcutStore
   private let applicationWindowCycler = ApplicationWindowCycler()
   private var runningProcesses: [UUID: Process] = [:]
 
-  init(history: ExecutionHistoryStore) {
+  init(history: ExecutionHistoryStore, store: ShortcutStore) {
     self.history = history
+    self.store = store
   }
 
   func execute(_ shortcut: DexShortcut) {
@@ -161,6 +164,41 @@ final class ActionExecutor: ObservableObject {
       throw ActionExecutionError.emptyCommand
     }
     let directory = try validatedWorkingDirectory(workingDirectory)
+    let terminal = store.configuration.defaultTerminal
+    guard
+      let terminalURL = NSWorkspace.shared.urlForApplication(
+        withBundleIdentifier: terminal.bundleIdentifier)
+    else {
+      throw ActionExecutionError.terminalUnavailable(terminal)
+    }
+    let completion: @Sendable (NSRunningApplication?, Error?) -> Void = { [weak self] _, error in
+      Task { @MainActor in
+        if let error {
+          self?.lastResult = "\(shortcut.name): \(error.localizedDescription)"
+        } else {
+          self?.lastResult = "Started \(shortcut.name) in \(terminal.displayName)."
+        }
+      }
+    }
+
+    if terminal == .ghostty {
+      let configuration = NSWorkspace.OpenConfiguration()
+      // Launch arguments only apply to a new instance. Keep its windows and
+      // completion behavior independent of the user's existing Ghostty session.
+      configuration.createsNewApplicationInstance = true
+      configuration.arguments = TerminalCommandScripts.ghosttyArguments(
+        command: command,
+        workingDirectory: directory,
+        closeOnCompletion: closeOnCompletion
+      )
+      NSWorkspace.shared.openApplication(
+        at: terminalURL,
+        configuration: configuration,
+        completionHandler: completion
+      )
+      return
+    }
+
     try FileManager.default.createDirectory(
       at: DexPaths.generatedCommandsDirectory,
       withIntermediateDirectories: true
@@ -189,25 +227,12 @@ final class ActionExecutor: ObservableObject {
       ofItemAtPath: scriptURL.path
     )
 
-    guard
-      let terminalURL = NSWorkspace.shared.urlForApplication(
-        withBundleIdentifier: "com.apple.Terminal")
-    else {
-      throw ActionExecutionError.terminalUnavailable
-    }
     NSWorkspace.shared.open(
       [scriptURL],
       withApplicationAt: terminalURL,
-      configuration: NSWorkspace.OpenConfiguration()
-    ) { [weak self] _, error in
-      Task { @MainActor in
-        if let error {
-          self?.lastResult = "\(shortcut.name): \(error.localizedDescription)"
-        } else {
-          self?.lastResult = "Started \(shortcut.name) in Terminal."
-        }
-      }
-    }
+      configuration: NSWorkspace.OpenConfiguration(),
+      completionHandler: completion
+    )
   }
 
   private func runCommandInBackground(
