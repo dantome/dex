@@ -21,7 +21,7 @@ final class DexApplicationModel: ObservableObject {
     let store = ShortcutStore()
     let monitor = GlobalShortcutMonitor()
     let history = ExecutionHistoryStore()
-    let executor = ActionExecutor(history: history)
+    let executor = ActionExecutor(history: history, store: store)
     self.store = store
     self.monitor = monitor
     self.executor = executor
